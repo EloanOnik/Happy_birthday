@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Поздравление с Днём Рождения</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #ffebf3;
+      color: #8a2d61;
+      font-family: 'Arial', sans-serif;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    svg {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    .link {
+      stroke: #ff99c2;
+      stroke-opacity: 0.6;
+      stroke-width: 1.5px;
+    }
+
+    .node text {
+      pointer-events: none;
+      font-size: 14px;
+      fill: white;
+      text-anchor: middle;
+      dominant-baseline: middle;
+      font-weight: 500;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    
+    .avatar {
+      cursor: move;
+      filter: drop-shadow(0 0 8px rgba(218, 83, 139, 0.4));
+    }
+
+    @media (max-width: 768px) {
+      .node text {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <svg></svg>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    // Адаптивные размеры
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const isMobile = window.innerWidth < 768;
+    const baseRadius = isMobile ? 20 : 24;
+
+    const centerNode = { 
+      id: "С Днём Рождения!", 
+      x: width / 2, 
+      y: height / 2,
+      fx: width / 2,
+      fy: height / 2
+    };
+
+    const wishes = [
+      "Счастья", "Любви", "Здоровья", "Улыбок", 
+      "Мечтай", "Путешествуй", "Вдохновляй", "Сияй",
+      "Успехов", "Красоты", "Нежности", "Тепла",
+      "Приключений", "Исполнения желаний", "Радости"
+    ];
+
+    // Создаём узлы с начальным расположением по кругу
+    const nodesData = [centerNode, ...wishes.map((w, i) => {
+      const angle = i / wishes.length * Math.PI * 2;
+      const radius = Math.max(baseRadius, w.length * (isMobile ? 5 : 6));
+      const distance = isMobile ? 120 : 180;
+      
+      return {
+        id: w,
+        radius: radius,
+        x: width/2 + Math.cos(angle) * distance,
+        y: height/2 + Math.sin(angle) * distance
+      };
+    })];
+
+    const linksData = wishes.map(w => ({
+      source: "С Днём Рождения!",
+      target: w
+    }));
+
+    const svg = d3.select("svg");
+
+    // Создаем градиент для шариков
+    const defs = svg.append("defs");
+    const gradient = defs.append("radialGradient")
+      .attr("id", "ballGradient")
+      .attr("cx", "30%")
+      .attr("cy", "30%")
+      .attr("r", "70%");
+      
+    gradient.append("stop").attr("offset", "0%").attr("stop-color", "#da538b");
+    gradient.append("stop").attr("offset", "100%").attr("stop-color", "#a8326e");
+
+    // Создаем симуляцию
+    const simulation = d3.forceSimulation(nodesData)
+      .force("link", d3.forceLink(linksData).id(d => d.id)
+        .distance(d => isMobile ? 100 : 140))
+      .force("charge", d3.forceManyBody()
+        .strength(isMobile ? -200 : -300))
+      .force("collision", d3.forceCollide()
+        .radius(d => d.radius + (isMobile ? 3 : 5)))
+      .force("center", d3.forceCenter(width / 2, height / 2));
+
+    // Рисуем связи
+    const link = svg.append("g")
+      .selectAll("line")
+      .data(linksData)
+      .join("line")
+      .attr("class", "link");
+
+    // Создаем узлы
+    const node = svg.append("g")
+      .selectAll("g")
+      .data(nodesData)
+      .join("g")
+      .attr("class", "node")
+      .call(drag(simulation));
+
+    // Добавляем круги с градиентом
+    node.append("circle")
+      .attr("r", d => d.id === "С Днём Рождения!" ? 0 : d.radius)
+      .attr("fill", d => d.id === "С Днём Рождения!" ? "transparent" : "url(#ballGradient)")
+      .attr("stroke", "#ff99c2")
+      .attr("stroke-width", 1.5);
+
+    // Добавляем аватарку
+    node.filter(d => d.id === "С Днём Рождения!")
+      .append("image")
+      .attr("class", "avatar")
+      .attr("href", "https://t.me/i/userpic/320/Ooprivetpoka.jpg")
+      .attr("x", isMobile ? -40 : -50)
+      .attr("y", isMobile ? -40 : -50)
+      .attr("width", isMobile ? 80 : 100)
+      .attr("height", isMobile ? 80 : 100)
+      .attr("clip-path", isMobile ? "circle(80px at 80px 80px)" : "circle(90px at 90px 90px)");
+
+    // Добавляем текст
+    node.append("text")
+      .text(d => d.id === "С Днём Рождения!" ? "" : d.id)
+      .attr("y", 4);
+
+    // Функция обновления позиций
+    function ticked() {
+      link
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
+
+      node
+        .attr("transform", d => `translate(${d.x},${d.y})`);
+    }
+
+    simulation.on("tick", ticked);
+
+    // Функция перетаскивания
+    function drag(simulation) {
+      return d3.drag()
+        .on("start", (event, d) => {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          if (d.id === "С Днём Рождения!") {
+            d.fx = d.x;
+            d.fy = d.y;
+          }
+        })
+        .on("drag", (event, d) => {
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on("end", (event, d) => {
+          if (d.id !== "С Днём Рождения!") {
+            d.fx = null;
+            d.fy = null;
+          }
+          simulation.alphaTarget(0);
+        });
+    }
+
+    // Обработчик изменения размера окна
+    window.addEventListener("resize", () => {
+      const newWidth = window.innerWidth;
+      const newHeight = window.innerHeight;
+      
+      centerNode.fx = newWidth / 2;
+      centerNode.fy = newHeight / 2;
+      
+      simulation.force("center", d3.forceCenter(newWidth / 2, newHeight / 2));
+      simulation.alpha(0.5).restart();
+    });
+
+    // Инициализация
+    setTimeout(() => simulation.alpha(1).restart(), 100);
+  </script>
+</body>
+</html>
